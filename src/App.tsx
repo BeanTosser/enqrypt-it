@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 
 export default function App() {
 
-  const keyParams = 
+  const keyParams = {};
 
   const subtleCrypto = window.crypto.subtle;
   
