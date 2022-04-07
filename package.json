@@ -5,7 +5,10 @@
   "keywords": [],
   "main": "src/index.js",
   "dependencies": {
-    "@types/react": "17.0.43",
+    "@types/qrcode": "^1.4.2",
+    "@types/react": "^17.0.43",
+    "@types/react-dom": "^17.0.14",
+    "qrcode": "^1.5.0",
     "react": "18.0.0",
     "react-dom": "18.0.0",
     "react-scripts": "5.0.0",
