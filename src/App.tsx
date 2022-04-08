@@ -6,6 +6,8 @@ import { EncryptedData } from "./Tools/StringEncryptorDecryptor";
 
 import QRCode from 'qrcode';
 
+import qrcodeParser from "qrcode-parser";
+
 export default function App() {
   const encryptorDecryptor = new StringEncryptorDecryptor();
 
@@ -40,7 +42,18 @@ export default function App() {
   }
   
   const decryptPassword = async function () {
-    //let decryptedPassword: string = (await encryptorDecryptor.decryptArrayBuffer(encryptedPassword as ArrayBuffer));
+    let decodedQr = qrcodeParser(qrcodeImage);
+    
+    
+    
+    
+    let decodedQrArrayBuffer = encoder.encode(decodedQr);
+    
+    
+    
+    
+    let decryptedPassword: string = (await encryptorDecryptor.decryptArrayBuffer(decodedQr as ArrayBuffer));
+    let decryptedPasswordString
     setEncryptedPassword(null);
     //setDecryptedPassword(decryptedPassword);
   }
