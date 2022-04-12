@@ -9,7 +9,13 @@ import QRCode from 'qrcode';
 import qrcodeParser from "qrcode-parser";
 
 export default function App() {
-  const encryptorDecryptor = new StringEncryptorDecryptor();
+  const [isKeyGenerated, setIsKeyGenerated] = useState<boolean>(false);
+  
+  const notifyKeyGenerated: () => void = function(){
+    setIsKeyGenerated(true);
+  }
+  
+  const encryptorDecryptor = new StringEncryptorDecryptor(notifyKeyGenerated);
 
   const enteredPassword = useRef<string>("");
   const [encryptedPassword, setEncryptedPassword] = useState<string | null>(null);
@@ -33,43 +39,48 @@ export default function App() {
       console.log("Failed to encrypt data: " + e);
       return;
     }
+    console.log("encrypted buffer: " + data.encryptedBuffer);
     //keyPair.current = data.encryptionKey;
     setEncryptedPassword(data.encryptedString);
     setDecryptedPassword("");
-    console.log("Password successfully encrypted: " + data);
+    console.log("Password successfully encrypted: " + data.encryptedString);
     let qrImage = await QRCode.toDataURL(data.encryptedString);
     setQrcodeImage(qrImage);
   }
   
   const decryptPassword = async function () {
-    let decodedQr = qrcodeParser(qrcodeImage);
+    let decodedQr: string = await qrcodeParser(qrcodeImage);
+    console.log("decoded QR: " + decodedQr);
+    let decryptedPassword: string = await encryptorDecryptor.decryptString(decodedQr) as string;
     
-    
-    
-    
-    let decodedQrArrayBuffer = encoder.encode(decodedQr);
-    
-    
-    
-    
-    let decryptedPassword: string = (await encryptorDecryptor.decryptArrayBuffer(decodedQr as ArrayBuffer));
-    let decryptedPasswordString
     setEncryptedPassword(null);
-    //setDecryptedPassword(decryptedPassword);
+    setDecryptedPassword(decryptedPassword);
   }
   
   let encryptButton: JSX.Element;
   let decryptButton: JSX.Element;
   
   if(encryptedPassword === null) {
-    encryptButton = 
-      <>
-        <button
-          onClick={encryptPassword}
-        >
-          Encrypt
-        </button>
-      </>
+    if(isKeyGenerated){
+      encryptButton = 
+        <>
+          <button
+            onClick={encryptPassword}
+          >
+            Encrypt
+          </button>
+        </>
+    } else {
+      encryptButton = 
+        <>
+          <button
+            onClick={encryptPassword}
+            disabled
+          >
+            Encrypt
+          </button>
+        </>
+    }
     decryptButton = 
       <>
         <button
@@ -109,6 +120,7 @@ export default function App() {
       {encryptButton}
       {decryptButton}
       <img src={qrcodeImage} alt="qrcode"/>
+      <p>Decrypted Password: {decryptedPassword}</p>
     </div>
   );
 }

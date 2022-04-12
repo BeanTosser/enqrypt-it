@@ -4,7 +4,10 @@
  * to (for encryption) or from (after decryption) ArrayBuffers. 
  */
  
+let debug_originalArrayBuffer: ArrayBuffer;
+ 
 export type EncryptedData = {
+  encryptedBuffer: ArrayBuffer,
   encryptedString: string,
   encryptionKey: CryptoKey
 }
@@ -25,22 +28,26 @@ class StringEncryptorDecryptor {
   decoder: TextDecoder;
   encryptionKey: CryptoKeyPair | null;
   
-  constructor(encryptionKey?: CryptoKeyPair){
-    if(encryptionKey === null || encryptionKey === undefined){
-      this.encryptionKey = null;
-      this.generateKey();
+  constructor(notifyKeyGeneratedCallback?: () => void){
+    this.encryptionKey = null;
+    if(notifyKeyGeneratedCallback){
+      this.generateKey(notifyKeyGeneratedCallback);
     } else {
-      this.encryptionKey = encryptionKey;
+      this.generateKey();
     }
+    
     this.encoder = new TextEncoder();
     this.decoder = new TextDecoder();
   }
   
-  async generateKey() {
+  async generateKey(callBack?: () => void) {
     this.encryptionKey = await subtleCrypto.generateKey(keyConfig, true, ["encrypt", "decrypt"]);
+    if(callBack !== null && callBack !== undefined){
+      callBack();
+    }
   }
   
-  async encryptString(str: string, key?: CryptoKey): Promise<EncryptedData | null>{
+  async encryptArrayBuffer(buffer: ArrayBuffer, key?: CryptoKey): Promise<EncryptedData | null>{
     let selectedKey: CryptoKey;
     if(key !== undefined){
       selectedKey = key;
@@ -49,21 +56,39 @@ class StringEncryptorDecryptor {
     } else {
       throw new Error("Encryption key has not finished generating.");
     }
-
-    const unencryptedMessage = this.encoder.encode(str);
     
     // Encrypt the message
     let encryptedMessage: ArrayBuffer;
     try{
-      encryptedMessage = await subtleCrypto.encrypt(encryptionParams, selectedKey, unencryptedMessage);
+      encryptedMessage = await subtleCrypto.encrypt(encryptionParams, selectedKey, buffer);
     } catch(e){
       throw e;
     }
     const encryptedMessageString = this.decoder.decode(encryptedMessage);
-    return {encryptedString: encryptedMessageString, encryptionKey: key as CryptoKey};
+    return {
+      encryptedBuffer: encryptedMessage,
+      encryptedString: encryptedMessageString,
+      encryptionKey: key as CryptoKey
+    };
   }
   
-  async decryptArrayBuffer(arrayBufferMessage: ArrayBuffer, key?: CryptoKey): Promise<string>{
+  async encryptString(str: string, key?: CryptoKey): Promise<EncryptedData | null>{
+    const encodedString = this.encoder.encode(str);
+    return await this.encryptArrayBuffer(encodedString, key); 
+  }
+  
+  async decryptString(str: string, key?: CryptoKey){
+    let encodedStr = this.encoder.encode(str);
+    console.log("encodedStr: " + encodedStr.toString());
+    
+    if(key !== undefined && key !== null) {
+      return this.decryptArrayBuffer(encodedStr, key);
+    } else {
+      return this.decryptArrayBuffer(encodedStr);
+    }
+  }
+  
+  async decryptArrayBuffer(arrayBufferMessage: Uint8Array, key?: CryptoKey): Promise<string | undefined>{
     let selectedKey: CryptoKey;
     if(key !== undefined){
       selectedKey = key;
@@ -74,9 +99,24 @@ class StringEncryptorDecryptor {
     }
     // Decrypt the message into ArrayBuffer
     let decryptedMessage: ArrayBuffer;
+    let decryptedMessageString: string;
     if(this.encryptionKey !== null){
-      decryptedMessage = await subtleCrypto.decrypt(encryptionParams, selectedKey, arrayBufferMessage);
-      let decryptedMessageString = this.decoder.decode(decryptedMessage);
+
+      try{
+        decryptedMessage = await subtleCrypto.decrypt(encryptionParams, selectedKey, arrayBufferMessage);
+
+      } catch(e) {
+        console.log("Failed to decrypt QR: " + e);
+        return;
+      }
+      try{
+
+        decryptedMessageString = this.decoder.decode(decryptedMessage);
+      } catch(e) {
+        console.log("Failed to decode ArrayBuffer: " + e);
+        return;
+      }
+
       return decryptedMessageString;
     } else {
       throw new Error("Encryption key has not finished generating!");
